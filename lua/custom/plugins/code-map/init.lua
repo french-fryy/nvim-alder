@@ -1,0 +1,35 @@
+return {}
+--
+-- local lfs = require("lfs")
+--
+-- local M = {}
+--
+-- function M.dang_world()
+-- 	print(
+-- 		"Dang world cuz hello world was causing bugs lol (must be another hello_world somewhere)! Anyways, using a good ol print(), thanks lua"
+-- 	)
+-- 	M.main()
+-- end
+--
+-- function M.main()
+-- 	M.walk_directory(".")
+-- end
+--
+-- vim.api.nvim_command('command! DangWorld lua require("custom.plugins.code-map").dang_world()')
+--
+-- function M.walk_directory(directory)
+-- 	for file in lfs.dir(directory) do
+-- 		if file ~= "." and file ~= ".." then
+-- 			local full_path = directory .. "/" .. file
+-- 			local mode = lfs.attributes(full_path, "mode")
+-- 			if mode == "directory" then
+-- 				print("Directory: " .. full_path)
+-- 				walk_directory(full_path)
+-- 			else
+-- 				print("File: " .. full_path)
+-- 			end
+-- 		end
+-- 	end
+-- end
+--
+-- return M
