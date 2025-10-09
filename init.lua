@@ -162,6 +162,11 @@ vim.opt.scrolloff = 10
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
+-- Key mappings for tab navigation
+vim.keymap.set('n', '<leader>l', ':tabn<CR>', { desc = 'Next tab' })
+vim.keymap.set('n', '<leader>h', ':tabp<CR>', { desc = 'Previous tab' })
+vim.keymap.set('n', '<leader>T', ':tabnew<CR>', { desc = 'New tab' })
+
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
@@ -347,7 +352,7 @@ require('lazy').setup({
   { -- Fuzzy Finder (files, lsp, etc)
     'nvim-telescope/telescope.nvim',
     event = 'VimEnter',
-    branch = '0.1.x',
+    branch = 'master',
     dependencies = {
       'nvim-lua/plenary.nvim',
       { -- If encountering errors, see telescope-fzf-native README for installation instructions
@@ -394,12 +399,30 @@ require('lazy').setup({
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
         --
-        -- defaults = {
-        --   mappings = {
-        --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
-        --   },
-        -- },
-        -- pickers = {}
+        defaults = {
+          -- mappings = {
+          --   i = { ['<c-enter>'] = 'to_fuzzy_refine' },
+          -- },
+          -- vimgrep_arguments = {
+          --   'rg',
+          --   -- '--color=never',
+          --   -- '--no-heading',
+          --   -- '--with-filename',
+          --   '--line-number',
+          --   -- '--column',
+          --   '--smart-case',
+          -- },
+          --
+
+          path_display = {
+            'filename_first',
+          },
+        },
+        pickers = {
+          lsp_references = {
+            show_line = true,
+          },
+        },
         extensions = {
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
@@ -530,6 +553,9 @@ require('lazy').setup({
           -- Find references for the word under your cursor.
           map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
 
+          -- --NOTE: CUSTOM Deduplicate Find references for the word under your cursor. - Alder
+          -- map('gP', require('telescope.builtin').lsp_deduplicated_references, '[g]oto [P]eferences')
+
           -- Jump to the implementation of the word under your cursor.
           --  Useful when your language has ways of declaring types without an actual implementation.
           map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
@@ -546,6 +572,10 @@ require('lazy').setup({
           -- Fuzzy find all the symbols in your current workspace.
           --  Similar to document symbols, except searches over your entire project.
           map('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
+
+          --NOTE: alder added this - hidden planets telescope feature???? what the heck
+          -- local planet_opts = { show_pluto = true, show_moon = true }
+          -- map('<leader>B', require('telescope.builtin').planets(planet_opts), '[B]lanets Picker?')
 
           -- Rename the variable under your cursor.
           --  Most Language Servers support renaming across files, etc.
@@ -609,6 +639,8 @@ require('lazy').setup({
       --   end
       --   vim.diagnostic.config { signs = { text = diagnostic_signs } }
       -- end
+      --
+      --
 
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
@@ -616,6 +648,39 @@ require('lazy').setup({
       --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
       local capabilities = vim.lsp.protocol.make_client_capabilities()
       capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
+
+      -- -- --NOTE: below is custom function to fix duplicate references in telescope - IT DOESN"T WORK - maybe I need to move it elsewhere? -Alder
+      -- local function filterDuplicates(array)
+      --   local uniqueArray = {}
+      --   for _, tableA in ipairs(array) do
+      --     local isDuplicate = false
+      --     for _, tableB in ipairs(uniqueArray) do
+      --       if vim.deep_equal(tableA, tableB) then
+      --         isDuplicate = true
+      --         break
+      --       end
+      --     end
+      --     if not isDuplicate then
+      --       table.insert(uniqueArray, tableA)
+      --     end
+      --   end
+      --   return uniqueArray
+      -- end
+      --
+      -- local function on_list(options)
+      --   options.items = filterDuplicates(options.items)
+      --   vim.fn.setqflist({}, ' ', options)
+      --   vim.cmd 'botright copen'
+      -- end
+      --
+      -- -- Override the default handler for references
+      -- local original_references_handler = vim.lsp.handlers['textDocument/references']
+      -- vim.lsp.handlers['textDocument/references'] = function(err, result, ctx, config)
+      --   config = config or {}
+      --   config.on_list = on_list
+      --   original_references_handler(err, result, ctx, config)
+      -- end
+      -- -- --NOTE: this is the end of the fix duplicate references stuff
 
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -626,6 +691,7 @@ require('lazy').setup({
       --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+
       local servers = {
         -- clangd = {},
         -- gopls = {},
@@ -691,6 +757,7 @@ require('lazy').setup({
             -- This handles overriding only values explicitly passed
             -- by the server configuration above. Useful when disabling
             -- certain features of an LSP (for example, turning off formatting for ts_ls)
+
             server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
             require('lspconfig')[server_name].setup(server)
           end,
@@ -733,6 +800,7 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
+        html = { 'prettier' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
@@ -820,7 +888,8 @@ require('lazy').setup({
           -- Manually trigger a completion from nvim-cmp.
           --  Generally you don't need this, because nvim-cmp will display
           --  completions whenever it has completion options available.
-          ['<C-Space>'] = cmp.mapping.complete {},
+          -- ['<C-Space>'] = cmp.mapping.complete {},
+          ['<C-a>'] = cmp.mapping.complete {}, -- NOTE: alder updated this so I could use <C-Space> as leader for tmux
 
           -- Think of <c-l> as moving to the right of your snippet expansion.
           --  So if you have a snippet that's like:
@@ -965,7 +1034,7 @@ require('lazy').setup({
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   { import = 'custom.plugins' },
-  { import = 'custom.plugins.code-map' },
+  -- { import = 'custom.plugins.code-map' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!
