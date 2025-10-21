@@ -1,0 +1,467 @@
+-- local channel = require("plenary.async.control").channel
+-- local actions = require("telescope.actions")
+-- local sorters = require("telescope.sorters")
+-- local conf = require("telescope.config").values
+-- local finders = require("telescope.finders")
+-- local make_entry = require("telescope.make_entry")
+-- local pickers = require("telescope.pickers")
+-- local utils = require("telescope.utils")
+
+local M = {}
+
+--NOTE: all the local functions below are copied from telescope.builtin.__lsp, we need
+-- them for the custom_list_or_jump method
+-- local me_lsp = {}
+--
+-- local function call_hierarchy(opts, method, title, direction, item)
+-- 	vim.lsp.buf_request(opts.bufnr, method, { item = item }, function(err, result)
+-- 		if err then
+-- 			vim.api.nvim_err_writeln("Error handling " .. title .. ": " .. err.message)
+-- 			return
+-- 		end
+--
+-- 		if not result or vim.tbl_isempty(result) then
+-- 			return
+-- 		end
+--
+-- 		local locations = {}
+-- 		for _, ch_call in pairs(result) do
+-- 			local ch_item = ch_call[direction]
+-- 			for _, rng in pairs(ch_call.fromRanges) do
+-- 				table.insert(locations, {
+-- 					filename = vim.uri_to_fname(ch_item.uri),
+-- 					text = ch_item.name,
+-- 					lnum = rng.start.line + 1,
+-- 					col = rng.start.character + 1,
+-- 				})
+-- 			end
+-- 		end
+--
+-- 		pickers
+-- 			.new(opts, {
+-- 				prompt_title = title,
+-- 				finder = finders.new_table({
+-- 					results = locations,
+-- 					entry_maker = opts.entry_maker or make_entry.gen_from_quickfix(opts),
+-- 				}),
+-- 				previewer = conf.qflist_previewer(opts),
+-- 				sorter = conf.generic_sorter(opts),
+-- 				push_cursor_on_edit = true,
+-- 				push_tagstack_on_edit = true,
+-- 			})
+-- 			:find()
+-- 	end)
+-- end
+--
+-- local function pick_call_hierarchy_item(call_hierarchy_items)
+-- 	if not call_hierarchy_items or vim.tbl_isempty(call_hierarchy_items) then
+-- 		return
+-- 	end
+-- 	if #call_hierarchy_items == 1 then
+-- 		return call_hierarchy_items[1]
+-- 	end
+-- 	local items = {}
+-- 	for i, item in pairs(call_hierarchy_items) do
+-- 		local entry = item.detail or item.name
+-- 		table.insert(items, string.format("%d. %s", i, entry))
+-- 	end
+-- 	local choice = vim.fn.inputlist(items)
+-- 	if choice < 1 or choice > #items then
+-- 		return
+-- 	end
+-- 	return call_hierarchy_items[choice]
+-- end
+--
+-- ---@param win number? Window handler
+-- ---@param extra table? Extra fields in params
+-- ---@return table|(fun(client: vim.lsp.Client): table) parmas to send to the server
+-- local function client_position_params(win, extra)
+-- 	win = win or vim.api.nvim_get_current_win()
+-- 	if vim.fn.has("nvim-0.11") == 0 then
+-- 		local params = vim.lsp.util.make_position_params(win)
+-- 		if extra then
+-- 			params = vim.tbl_extend("force", params, extra)
+-- 		end
+-- 		return params
+-- 	end
+-- 	return function(client)
+-- 		local params = vim.lsp.util.make_position_params(win, client.offset_encoding)
+-- 		if extra then
+-- 			params = vim.tbl_extend("force", params, extra)
+-- 		end
+-- 		return params
+-- 	end
+-- end
+--
+-- local function calls(opts, direction)
+-- 	local params = client_position_params()
+-- 	vim.lsp.buf_request(opts.bufnr, "textDocument/prepareCallHierarchy", params, function(err, result)
+-- 		if err then
+-- 			vim.api.nvim_err_writeln("Error when preparing call hierarchy: " .. err)
+-- 			return
+-- 		end
+--
+-- 		local call_hierarchy_item = pick_call_hierarchy_item(result)
+-- 		if not call_hierarchy_item then
+-- 			return
+-- 		end
+--
+-- 		if direction == "from" then
+-- 			call_hierarchy(opts, "callHierarchy/incomingCalls", "LSP Incoming Calls", direction, call_hierarchy_item)
+-- 		else
+-- 			call_hierarchy(opts, "callHierarchy/outgoingCalls", "LSP Outgoing Calls", direction, call_hierarchy_item)
+-- 		end
+-- 	end)
+-- end
+--
+-- me_lsp.incoming_calls = function(opts)
+-- 	calls(opts, "from")
+-- end
+--
+-- me_lsp.outgoing_calls = function(opts)
+-- 	calls(opts, "to")
+-- end
+--
+-- --- convert `item` type back to something we can pass to `vim.lsp.util.jump_to_location`
+-- --- stopgap for pre-nvim 0.10 - after which we can simply use the `user_data`
+-- --- field on the items in `vim.lsp.util.locations_to_items`
+-- ---@param item vim.quickfix.entry
+-- ---@param offset_encoding string|nil utf-8|utf-16|utf-32
+-- ---@return me_lsp.Location
+-- local function item_to_location(item, offset_encoding)
+-- 	local line = math.max(0, item.lnum - 1)
+-- 	local character = math.max(0, utils.str_byteindex(item.text, item.col, offset_encoding or "utf-16") - 1)
+-- 	local uri
+-- 	if utils.is_uri(item.filename) then
+-- 		uri = item.filename
+-- 	else
+-- 		uri = vim.uri_from_fname(item.filename)
+-- 	end
+-- 	return {
+-- 		uri = uri,
+-- 		range = {
+-- 			start = {
+-- 				line = line,
+-- 				character = character,
+-- 			},
+-- 			["end"] = {
+-- 				line = line,
+-- 				character = character,
+-- 			},
+-- 		},
+-- 	}
+-- end
+--
+-- ---@alias telescope.lsp.list_or_jump_action
+-- ---| "textDocument/references"
+-- ---| "textDocument/definition"
+-- ---| "textDocument/typeDefinition"
+-- ---| "textDocument/implementation"
+--
+-- ---@param action telescope.lsp.list_or_jump_action
+-- ---@param items vim.quickfix.entry[]
+-- ---@param opts table
+-- ---@return vim.quickfix.entry[]
+-- local apply_action_handler = function(action, items, opts)
+-- 	if action == "textDocument/references" and not opts.include_current_line then
+-- 		local lnum = vim.api.nvim_win_get_cursor(opts.winnr)[1]
+-- 		items = vim.tbl_filter(function(v)
+-- 			return not (v.filename == opts.curr_filepath and v.lnum == lnum)
+-- 		end, items)
+-- 	end
+--
+-- 	return items
+-- end
+--
+-- ---@param items vim.quickfix.entry[]
+-- ---@param opts table
+-- ---@return vim.quickfix.entry[]
+-- local function filter_file_ignore_patters(items, opts)
+-- 	local file_ignore_patterns = vim.F.if_nil(opts.file_ignore_patterns, conf.file_ignore_patterns)
+-- 	file_ignore_patterns = file_ignore_patterns or {}
+-- 	if vim.tbl_isempty(file_ignore_patterns) then
+-- 		return items
+-- 	end
+--
+-- 	return vim.tbl_filter(function(item)
+-- 		for _, patt in ipairs(file_ignore_patterns) do
+-- 			if string.match(item.filename, patt) then
+-- 				return false
+-- 			end
+-- 		end
+-- 		return true
+-- 	end, items)
+-- end
+--
+-- ---@param action telescope.lsp.list_or_jump_action
+-- ---@param title string prompt title
+-- ---@param funname string: name of the calling function
+-- ---@param params lsp.TextDocumentPositionParams|(fun(client: vim.lsp.Client, bufnr: integer): table?)
+-- ---@param opts table
+-- local function list_or_jump(action, title, funname, params, opts)
+-- 	opts.reuse_win = vim.F.if_nil(opts.reuse_win, false)
+-- 	opts.curr_filepath = vim.api.nvim_buf_get_name(opts.bufnr)
+--
+-- 	vim.lsp.buf_request_all(opts.bufnr, action, params, function(results_per_client)
+-- 		local items = {}
+-- 		local first_encoding
+-- 		local errors = {}
+--
+-- 		for client_id, result_or_error in pairs(results_per_client) do
+-- 			local error, result = result_or_error.error, result_or_error.result
+-- 			if error then
+-- 				errors[client_id] = error
+-- 			else
+-- 				if result ~= nil then
+-- 					local locations = {}
+--
+-- 					if not utils.islist(result) then
+-- 						vim.list_extend(locations, { result })
+-- 					else
+-- 						vim.list_extend(locations, result)
+-- 					end
+--
+-- 					local offset_encoding = vim.lsp.get_client_by_id(client_id).offset_encoding
+--
+-- 					if not vim.tbl_isempty(result) then
+-- 						first_encoding = offset_encoding
+-- 					end
+--
+-- 					vim.list_extend(items, vim.lsp.util.locations_to_items(locations, offset_encoding))
+-- 				end
+-- 			end
+-- 		end
+--
+-- 		for _, error in pairs(errors) do
+-- 			vim.api.nvim_err_writeln("Error when executing " .. action .. " : " .. error.message)
+-- 		end
+--
+-- 		items = apply_action_handler(action, items, opts)
+-- 		items = filter_file_ignore_patters(items, opts)
+--
+-- 		if vim.tbl_isempty(items) then
+-- 			utils.notify(funname, {
+-- 				msg = string.format("No %s found", title),
+-- 				level = "INFO",
+-- 			})
+-- 			return
+-- 		end
+--
+-- 		if #items == 1 and opts.jump_type ~= "never" then
+-- 			local item = items[1]
+-- 			if opts.curr_filepath ~= item.filename then
+-- 				local cmd
+-- 				if opts.jump_type == "tab" then
+-- 					cmd = "tabedit"
+-- 				elseif opts.jump_type == "split" then
+-- 					cmd = "new"
+-- 				elseif opts.jump_type == "vsplit" then
+-- 					cmd = "vnew"
+-- 				elseif opts.jump_type == "tab drop" then
+-- 					cmd = "tab drop"
+-- 				end
+--
+-- 				if cmd then
+-- 					vim.cmd(string.format("%s %s", cmd, item.filename))
+-- 				end
+-- 			end
+--
+-- 			local location = item_to_location(item, first_encoding)
+-- 			vim.lsp.util.show_document(location, first_encoding, { reuse_win = opts.reuse_win })
+-- 		else
+-- 			pickers
+-- 				.new(opts, {
+-- 					prompt_title = title,
+-- 					finder = finders.new_table({
+-- 						results = items,
+-- 						entry_maker = opts.entry_maker or make_entry.gen_from_quickfix(opts),
+-- 					}),
+-- 					previewer = conf.qflist_previewer(opts),
+-- 					sorter = conf.generic_sorter(opts),
+-- 					push_cursor_on_edit = true,
+-- 					push_tagstack_on_edit = true,
+-- 				})
+-- 				:find()
+-- 		end
+-- 	end)
+-- end
+--
+-- --NOTE: END COPIED LOCAL FUNCTIONS FROM telescope.builtin.__lsp
+--
+-- --NOTE: below is custom list_or_jump function for deduplicated_references_picker,
+-- -- since the telescope.builtin.references picker is using telescopes list_or_jump
+-- -- method behind the scenes, we need a custom list_or_jump here so we can wrap the
+-- -- finder it uses for the picker it returns with a deduplicate filter function
+-- --
+-- ---@param action telescope.lsp.list_or_jump_action
+-- ---@param title string prompt title
+-- ---@param funname string: name of the calling function
+-- ---@param params lsp.TextDocumentPositionParams|(fun(client: vim.lsp.Client, bufnr: integer): table?)
+-- ---@param opts table
+-- local function custom_finder_list_or_jump(action, title, funname, params, opts)
+-- 	opts.reuse_win = vim.F.if_nil(opts.reuse_win, false)
+-- 	opts.curr_filepath = vim.api.nvim_buf_get_name(opts.bufnr)
+--
+-- 	vim.lsp.buf_request_all(opts.bufnr, action, params, function(results_per_client)
+-- 		local items = {}
+-- 		local first_encoding
+-- 		local errors = {}
+--
+-- 		for client_id, result_or_error in pairs(results_per_client) do
+-- 			local error, result = result_or_error.error, result_or_error.result
+-- 			if error then
+-- 				errors[client_id] = error
+-- 			else
+-- 				if result ~= nil then
+-- 					local locations = {}
+--
+-- 					if not utils.islist(result) then
+-- 						vim.list_extend(locations, { result })
+-- 					else
+-- 						vim.list_extend(locations, result)
+-- 					end
+--
+-- 					local offset_encoding = vim.lsp.get_client_by_id(client_id).offset_encoding
+--
+-- 					if not vim.tbl_isempty(result) then
+-- 						first_encoding = offset_encoding
+-- 					end
+--
+-- 					vim.list_extend(items, vim.lsp.util.locations_to_items(locations, offset_encoding))
+-- 				end
+-- 			end
+-- 		end
+--
+-- 		for _, error in pairs(errors) do
+-- 			vim.api.nvim_err_writeln("Error when executing " .. action .. " : " .. error.message)
+-- 		end
+--
+-- 		items = apply_action_handler(action, items, opts)
+-- 		items = filter_file_ignore_patters(items, opts)
+--
+-- 		if vim.tbl_isempty(items) then
+-- 			utils.notify(funname, {
+-- 				msg = string.format("No %s found", title),
+-- 				level = "INFO",
+-- 			})
+-- 			return
+-- 		end
+--
+-- 		if #items == 1 and opts.jump_type ~= "never" then
+-- 			local item = items[1]
+-- 			if opts.curr_filepath ~= item.filename then
+-- 				local cmd
+-- 				if opts.jump_type == "tab" then
+-- 					cmd = "tabedit"
+-- 				elseif opts.jump_type == "split" then
+-- 					cmd = "new"
+-- 				elseif opts.jump_type == "vsplit" then
+-- 					cmd = "vnew"
+-- 				elseif opts.jump_type == "tab drop" then
+-- 					cmd = "tab drop"
+-- 				end
+--
+-- 				if cmd then
+-- 					vim.cmd(string.format("%s %s", cmd, item.filename))
+-- 				end
+-- 			end
+--
+-- 			local location = item_to_location(item, first_encoding)
+-- 			vim.lsp.util.show_document(location, first_encoding, { reuse_win = opts.reuse_win })
+-- 		else
+-- 			pickers
+-- 				.new(opts, {
+-- 					prompt_title = title,
+-- 					--TODO: do something with the finder stuff below to filter out duplicate options
+-- 					finder = finders.new_table({
+-- 						results = items,
+-- 						entry_maker = opts.entry_maker or make_entry.gen_from_quickfix(opts),
+-- 					}),
+-- 					previewer = conf.qflist_previewer(opts),
+-- 					sorter = conf.generic_sorter(opts),
+-- 					push_cursor_on_edit = true,
+-- 					push_tagstack_on_edit = true,
+-- 				})
+-- 				:find()
+-- 		end
+-- 	end)
+-- end
+--
+-- -- NOTE: custom picker for go to references, based off telescope reference picker but with deduplicate function
+-- -- used to filter finder results
+--
+-- me_lsp.custom_deduplicated_references = function(opts)
+-- 	opts.include_current_line = vim.F.if_nil(opts.include_current_line, false)
+-- 	local params = client_position_params(opts.winnr, {
+-- 		context = { includeDeclaration = vim.F.if_nil(opts.include_declaration, true) },
+-- 	})
+-- 	return custom_finder_list_or_jump(
+-- 		"textDocument/references",
+-- 		"LSP References",
+-- 		"custom_deduplicated_references",
+-- 		params,
+-- 		opts
+-- 	)
+-- end
+--
+-- --NOTE: below is copied from telescope.builtin.__lsp, I'm copying how they export their lsp functions (e.g. with opts handling)
+-- local function check_capabilities(method, bufnr)
+-- 	--TODO(clason): remove when dropping support for Nvim 0.9
+-- 	local get_clients = vim.fn.has("nvim-0.10") == 1 and vim.lsp.get_clients or vim.lsp.get_active_clients
+-- 	local clients = get_clients({ bufnr = bufnr })
+--
+-- 	for _, client in pairs(clients) do
+-- 		if vim.fn.has("nvim-0.11") == 1 then
+-- 			if client:supports_method(method, bufnr) then
+-- 				return true
+-- 			end
+-- 		else
+-- 			if client.supports_method(method, { bufnr = bufnr }) then
+-- 				return true
+-- 			end
+-- 		end
+-- 	end
+--
+-- 	if #clients == 0 then
+-- 		utils.notify("builtin.lsp_*", {
+-- 			msg = "no client attached",
+-- 			level = "INFO",
+-- 		})
+-- 	else
+-- 		utils.notify("builtin.lsp_*", {
+-- 			msg = "server does not support " .. method,
+-- 			level = "INFO",
+-- 		})
+-- 	end
+-- 	return false
+-- end
+--
+-- local feature_map = {
+-- 	["document_symbols"] = "textDocument/documentSymbol",
+-- 	["references"] = "textDocument/references",
+-- 	["definitions"] = "textDocument/definition",
+-- 	["type_definitions"] = "textDocument/typeDefinition",
+-- 	["implementations"] = "textDocument/implementation",
+-- 	["workspace_symbols"] = "workspace/symbol",
+-- 	["incoming_calls"] = "callHierarchy/incomingCalls",
+-- 	["outgoing_calls"] = "callHierarchy/outgoingCalls",
+-- }
+--
+-- local function apply_checks(mod)
+-- 	for k, v in pairs(mod) do
+-- 		mod[k] = function(opts)
+-- 			opts = opts or {}
+--
+-- 			local method = feature_map[k]
+-- 			if method and not check_capabilities(method, opts.bufnr) then
+-- 				return
+-- 			end
+-- 			v(opts)
+-- 		end
+-- 	end
+--
+-- 	return mod
+-- end
+--
+-- return apply_checks(me_lsp)
+return M
