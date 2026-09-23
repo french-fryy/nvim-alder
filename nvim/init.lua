@@ -208,6 +208,10 @@ vim.api.nvim_set_keymap('n', '<C-q>', '<C-v>', { noremap = true, silent = true }
 -- Keymap for oil plugin
 vim.keymap.set('n', '<leader>o', '<cmd>Oil<CR>', { desc = 'Run Oil plugin' })
 
+-- Keymaps for render-markdown plugin
+vim.keymap.set('n', '<leader>tp', '<cmd>RenderMarkdown preview<CR>', { desc = '[T]oggle markdown [P]review' })
+vim.keymap.set('n', '<leader>tm', '<cmd>RenderMarkdown toggle<CR>', { desc = '[T]oggle [M]arkdown rendering' })
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
