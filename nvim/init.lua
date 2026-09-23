@@ -208,6 +208,13 @@ vim.api.nvim_set_keymap('n', '<C-q>', '<C-v>', { noremap = true, silent = true }
 -- Keymap for oil plugin
 vim.keymap.set('n', '<leader>o', '<cmd>Oil<CR>', { desc = 'Run Oil plugin' })
 
+-- Keymaps for diffview.nvim
+vim.keymap.set('n', '<leader>go', '<cmd>DiffviewOpen<CR>', { desc = '[G]it [O]pen diffview' })
+vim.keymap.set('n', '<leader>gc', '<cmd>DiffviewClose<CR>', { desc = '[G]it [C]lose diffview' })
+vim.keymap.set('n', '<leader>gh', '<cmd>DiffviewFileHistory %<CR>', { desc = '[G]it file [H]istory' })
+vim.keymap.set('n', '<leader>gH', '<cmd>DiffviewFileHistory<CR>', { desc = '[G]it repo [H]istory' })
+vim.keymap.set('n', '<leader>gf', '<cmd>DiffviewToggleFiles<CR>', { desc = '[G]it toggle [F]iles panel' })
+
 -- Keymaps for render-markdown plugin
 vim.keymap.set('n', '<leader>tp', '<cmd>RenderMarkdown preview<CR>', { desc = '[T]oggle markdown [P]review' })
 vim.keymap.set('n', '<leader>tm', '<cmd>RenderMarkdown toggle<CR>', { desc = '[T]oggle [M]arkdown rendering' })
@@ -337,6 +344,7 @@ require('lazy').setup({
       spec = {
         { '<leader>c', group = '[C]ode', mode = { 'n', 'x' } },
         { '<leader>d', group = '[D]ocument' },
+        { '<leader>g', group = '[G]it' },
         { '<leader>r', group = '[R]ename' },
         { '<leader>s', group = '[S]earch' },
         { '<leader>w', group = '[W]orkspace' },
